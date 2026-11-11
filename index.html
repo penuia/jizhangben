@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-180.png">
-  <link rel="stylesheet" href="./style.css?v=15">
+  <link rel="stylesheet" href="./style.css?v=16">
   <title>记账本</title>
 </head>
 <body>
@@ -70,7 +70,7 @@
     </main>
 
     <button id="add-button" class="fab" type="button" aria-label="新增记账"><span aria-hidden="true">＋</span>记一笔</button>
-    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" type="button" data-page="home"><span>▤</span><small>明细</small></button><button class="nav-item" type="button" data-page="stats"><span>◉</span><small>统计</small></button><button class="nav-item" type="button" data-page="settings"><span>⚙</span><small>设置</small></button></nav>
+    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" type="button" data-page="home"><span aria-hidden="true">🧾</span><small>明细</small></button><button class="nav-item" type="button" data-page="stats"><span aria-hidden="true">📊</span><small>统计</small></button><button class="nav-item" type="button" data-page="settings"><span aria-hidden="true">⚙️</span><small>设置</small></button></nav>
   </div>
 
   <dialog id="entry-dialog" class="entry-dialog" tabindex="-1">
@@ -89,6 +89,6 @@
 
   <div id="shortcut-card" class="shortcut-card" role="status" aria-live="polite" hidden><span class="shortcut-spark" aria-hidden="true">🕊️</span><div><strong>快捷指令自动记账成功 🕊️</strong><small id="shortcut-detail"></small></div><button id="close-shortcut-card" type="button" aria-label="关闭提示">×</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=15"></script>
+  <script type="module" src="./app.js?v=16"></script>
 </body>
 </html>
