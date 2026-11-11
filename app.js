@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './parser.mjs';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
@@ -203,6 +203,7 @@ function openEntry(row = null) {
   entryType = row?.type || 'expense';
   entryCategory = row?.category || (entryType === 'income' ? '工资' : '餐饮');
   $('#dialog-title').textContent = editingId ? '编辑记录' : '记一笔';
+  $('#ocr-review-message').hidden = true;
   $('#entry-amount').value = row ? (row.amountCents / 100).toFixed(2) : '';
   $('#entry-merchant').value = row?.merchant || '';
   $('#entry-date').value = row?.date || today();
@@ -304,12 +305,36 @@ function showShortcutCard(row) {
   $('#shortcut-detail').textContent = merchantOf(row) + ' · ' + money(row.amountCents);
   $('#shortcut-card').hidden = false;
 }
+function reviewOCR(result) {
+  openEntry();
+  entryType = result.type;
+  entryCategory = categories(entryType).some(c => c.name === result.category) ? result.category : '其他';
+  renderCategories();
+  $('#dialog-title').textContent = '核对识别结果';
+  $('#ocr-review-message').textContent = result.reason || '请核对金额和分类后保存';
+  $('#ocr-review-message').hidden = false;
+  $('#entry-amount').value = result.amountCents ? (result.amountCents / 100).toFixed(2) : '';
+  $('#entry-merchant').value = result.merchant || '';
+  $('#entry-date').value = result.date || today();
+}
 function captureFromURL() {
   const hashParams = new URLSearchParams(location.hash.slice(1));
   const queryParams = new URLSearchParams(location.search);
-  const params = hashParams.has('amount') ? hashParams : queryParams.has('amount') ? queryParams : null;
+  const params = hashParams.has('ocr') || hashParams.has('amount') ? hashParams : queryParams.has('amount') ? queryParams : null;
   if (!params) return;
   history.replaceState(null, '', location.pathname);
+  if (params.has('ocr')) {
+    const result = parseOCR(params.get('ocr') || '');
+    if (result.status !== 'auto') { reviewOCR(result); return; }
+    const row = { id:newId(), type:result.type, amountCents:result.amountCents, merchant:result.merchant || '', category:result.category, date:result.date, note:'', createdAt:Date.now() };
+    const previous = records;
+    records = [...records,row];
+    if (!persist()) { records = previous; return; }
+    viewingMonth = new Date(Number(row.date.slice(0,4)), Number(row.date.slice(5,7)) - 1, 1);
+    setPage('home');
+    showShortcutCard(row);
+    return;
+  }
   const cents = parseAmount((params.get('amount') || '').trim());
   if (!cents) { showToast('快捷指令金额无效，未保存'); return; }
   const type = params.get('type') === 'income' ? 'income' : 'expense';

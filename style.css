@@ -101,6 +101,7 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid #4
 .entry-dialog::backdrop{background:#203e5a75}
 .dialog-head{display:flex;justify-content:space-between;align-items:center;height:61px}
 .dialog-head h2{font-size:16px;margin:0}
+.ocr-review-message{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:#fff1dc;color:#765b36;font-size:13px;line-height:1.5}
 .text-button{min-width:45px;height:42px;border:0;background:transparent;color:#8ba2b5;font-size:14px}
 .text-button.save{color:#4A7BB0;font-weight:800}
 .type-switch{display:flex;gap:4px;padding:4px;background:#eaf3fa;border-radius:12px;margin:7px 0 16px}

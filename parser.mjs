@@ -67,7 +67,7 @@ function guessCategory(text, type) {
 export function parseOCR(rawText, today = new Date()) {
   const text = normalize(rawText).trim();
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '其他', note: '' };
+  if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '其他', merchant: '', note: '' };
   const failed = /支付失败|付款失败|收款失败|交易失败|支付中|待支付|待付款|未支付|已取消|交易关闭|退款中/.test(text);
   const income = /收款成功|已收款|到账成功|入账成功|收入成功|退款成功|退款到账/.test(text);
   const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功/.test(text);
@@ -83,5 +83,5 @@ export function parseOCR(rawText, today = new Date()) {
   else if (income && expense) reason = '收支方向不明确，请核对';
   else if (!amount) reason = '没有找到明确的交易金额，请核对';
   else if (amount.score < 3) reason = '金额缺少交易标签，请核对';
-  return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, note, date };
+  return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, merchant, note, date };
 }
