@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#A7C7E7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="记账本">
+  <meta name="description" content="只保存在本机的拍立得风格记账工具">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-180.png">
+  <link rel="stylesheet" href="./style.css?v=13">
+  <title>记账本</title>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand"><span>记账本</span></div>
+        <button id="open-settings" class="header-action" type="button" aria-label="打开设置">⚙</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="page-home" class="page active" aria-labelledby="home-heading">
+        <div class="month-row">
+          <div><h2 id="home-heading">收支明细</h2></div>
+          <div class="month-switcher"><button id="prev-month" type="button" aria-label="上个月">‹</button><span id="month-label"></span><button id="next-month" type="button" aria-label="下个月">›</button></div>
+        </div>
+        <div class="summary-card">
+          <p class="summary-label">本月支出总计</p>
+          <div id="balance" class="balance">¥0.00</div>
+          <p id="budget-status" class="budget-status">每一笔都值得被温柔记下。</p>
+          <div class="summary-bottom">
+            <div><small>本月收入</small><strong id="income-total">¥0.00</strong></div>
+            <div><small>本月结余</small><strong id="expense-total">¥0.00</strong></div>
+          </div>
+        </div>
+        <div class="section-head"><div><h2>账单记录</h2></div><span id="record-count">共 0 笔</span></div>
+        <div id="transaction-list" class="transaction-list"></div>
+      </section>
+
+      <section id="page-stats" class="page" aria-labelledby="stats-heading">
+        <div class="page-intro"><h2 id="stats-heading">收支统计</h2></div>
+        <div class="period-switch" role="group" aria-label="统计周期"><button type="button" data-period="month" class="selected">月度</button><button type="button" data-period="year">年度</button></div>
+        <div id="monthly-stats">
+          <div class="month-switcher stats-month"><button id="stats-prev" type="button" aria-label="上个月">‹</button><span id="stats-month-label"></span><button id="stats-next" type="button" aria-label="下个月">›</button></div>
+          <div class="paper-card stats-card"><div class="stats-top"><span>本月支出</span><strong id="stats-expense">¥0.00</strong></div><div class="donut-wrap"><div id="donut" class="donut"><div class="donut-hole"><small>支出笔数</small><strong id="expense-count">0</strong></div></div></div><div id="category-breakdown" class="category-breakdown"></div></div>
+          <div class="paper-card stats-card"><div class="stats-top"><span>本月收入</span><strong id="stats-income">¥0.00</strong></div><div id="income-breakdown" class="category-breakdown"></div></div>
+        </div>
+        <div id="annual-stats" hidden>
+          <div class="month-switcher stats-month"><button id="year-prev" type="button" aria-label="上一年">‹</button><span id="year-label"></span><button id="year-next" type="button" aria-label="下一年">›</button></div>
+          <div class="paper-card annual-summary"><div><small>全年收入</small><strong id="year-income">¥0.00</strong></div><div><small>全年支出</small><strong id="year-expense">¥0.00</strong></div><div><small>全年结余</small><strong id="year-balance">¥0.00</strong></div></div>
+          <div class="paper-card stats-card"><h3 class="stats-subtitle">每月收支</h3><div class="annual-legend"><span><i class="income-dot"></i>收入</span><span><i class="expense-dot"></i>支出</span></div><div id="annual-months"></div></div>
+          <div class="paper-card stats-card"><h3 class="stats-subtitle">年度支出分类</h3><div id="annual-expense-breakdown" class="category-breakdown"></div></div>
+          <div class="paper-card stats-card"><h3 class="stats-subtitle">年度收入分类</h3><div id="annual-income-breakdown" class="category-breakdown"></div></div>
+        </div>
+      </section>
+
+      <section id="page-settings" class="page" aria-labelledby="settings-heading">
+        <div class="page-intro"><h2 id="settings-heading">设置与备份</h2><p>账目保存在这台设备的浏览器中。</p></div>
+        <div class="paper-card settings-card"><h3>月度预算</h3><p>预算只保存在本机。</p><div class="inline-form"><input id="monthly-budget" type="text" inputmode="decimal" placeholder="例如 3000.00" aria-label="月度预算"><button id="save-budget" type="button">保存</button></div></div>
+        <div class="paper-card settings-card"><h3>自定义分类</h3><p>分别添加支出或收入分类，已有账目不会因删除分类而改变。</p><form id="category-form" class="category-form"><select id="new-category-type" aria-label="分类类型"><option value="expense">支出</option><option value="income">收入</option></select><input id="new-category-name" type="text" maxlength="12" placeholder="分类名称" aria-label="分类名称" required><input id="new-category-icon" type="text" maxlength="8" placeholder="图标" aria-label="分类图标，可选"><button type="submit">添加</button></form><div id="custom-category-list" class="custom-category-list"></div></div>
+        <div class="paper-card settings-card"><h3>我的数据</h3><p>换手机或清除 Safari 数据前，记得导出备份。</p><button class="setting-row" id="export-csv" type="button"><span>导出 CSV 表格</span><span>↗</span></button><button class="setting-row" id="export-json" type="button"><span>导出完整备份</span><span>↗</span></button><label class="setting-row" for="import-file"><span>从备份恢复</span><span>›</span></label><input id="import-file" type="file" accept=".json,application/json" hidden></div>
+        <div class="paper-card settings-card"><h3>快捷指令记账</h3><p>打开带参数的网址即可自动记账。推荐使用 <code>#amount=25&amp;merchant=便利店&amp;category=餐饮</code>，网址片段不会发送给托管平台。</p><button class="setting-row" id="copy-shortcut-url" type="button"><span>复制网址示例</span><span>⧉</span></button><p class="privacy-small">也兼容 <code>?amount=...</code>，但问号后的内容会随首次网页请求到达托管平台。</p></div>
+        <p class="privacy-note">🔒 账目只写入当前浏览器的 localStorage；本应用没有上传账目的接口。无痕模式、清理网站数据或更换浏览器可能导致本机记录丢失。</p>
+      </section>
+    </main>
+
+    <button id="add-button" class="fab" type="button" aria-label="新增记账"><span aria-hidden="true">＋</span>记一笔</button>
+    <nav class="bottom-nav" aria-label="主导航"><button class="nav-item active" type="button" data-page="home"><span>▤</span><small>明细</small></button><button class="nav-item" type="button" data-page="stats"><span>◉</span><small>统计</small></button><button class="nav-item" type="button" data-page="settings"><span>⚙</span><small>设置</small></button></nav>
+  </div>
+
+  <dialog id="entry-dialog" class="entry-dialog">
+    <form id="entry-form" novalidate>
+      <div class="dialog-head"><button type="button" id="close-entry" class="text-button">取消</button><h2 id="dialog-title">记一笔</h2><button type="submit" class="text-button save">保存</button></div>
+      <div class="type-switch" role="group" aria-label="收支类型"><button type="button" data-type="expense" class="selected">支出</button><button type="button" data-type="income">收入</button></div>
+      <label class="amount-field"><span>金额</span><div><b>¥</b><input id="entry-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" required></div></label>
+      <div class="form-group"><label for="entry-merchant">商户或来源（可选）</label><input id="entry-merchant" type="text" maxlength="60" autocomplete="off" placeholder="例如 便利店"></div>
+      <div class="form-group"><label>分类</label><div id="category-picker" class="category-picker"></div></div>
+      <div class="form-group"><label for="entry-date">日期</label><input id="entry-date" type="date" required></div>
+      <div class="form-group"><label for="entry-note">备注（可选）</label><input id="entry-note" type="text" maxlength="80" placeholder="留一句给今天的话"></div>
+      <button id="delete-entry" class="delete-button" type="button" hidden>删除这笔记录</button>
+    </form>
+  </dialog>
+
+  <div id="shortcut-card" class="shortcut-card" role="status" aria-live="polite" hidden><span class="shortcut-spark" aria-hidden="true">🕊️</span><div><strong>快捷指令自动记账成功 🕊️</strong><small id="shortcut-detail"></small></div><button id="close-shortcut-card" type="button" aria-label="关闭提示">×</button></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js?v=13"></script>
+</body>
+</html>

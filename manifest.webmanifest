@@ -1,0 +1,1 @@
+{"name":"记账本","short_name":"记账本","description":"只保存在本机的记账工具","start_url":"./","scope":"./","display":"standalone","background_color":"#F7F5F0","theme_color":"#A7C7E7","icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"},{"src":"./icon-180.png","sizes":"180x180","type":"image/png"}]}
