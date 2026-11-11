@@ -11,6 +11,45 @@ export const INCOME_CATEGORIES = [
 ];
 
 const normalize = value => String(value || '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/．/g, '.').replace(/，/g, ',').replace(/：/g, ':').replace(/￥/g, '¥');
+const dateLabel = /交易时间|支付时间|付款时间|收款时间|成交时间|完成时间|到账时间/;
+const fullDatePattern = /(?<!\d)(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?(?!\d)/g;
+const partialDatePattern = /(?<!\d)(\d{1,2})月\s*(\d{1,2})日(?!\d)/;
+const formatDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+function calendarDate(year, month, day) {
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+function findDate(lines, today) {
+  const fallback = formatDate(today);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const candidates = [];
+  let invalidLabelledDate = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (const match of line.matchAll(fullDatePattern)) {
+      const date = calendarDate(Number(match[1]), Number(match[2]), Number(match[3]));
+      const labelled = dateLabel.test(line) || dateLabel.test(lines[i - 1] || '');
+      if (!date) { if (labelled) invalidLabelledDate = true; continue; }
+      candidates.push({ date: formatDate(date), score: labelled ? 5 : /订单时间|创建时间/.test(line) ? 2 : 3, future: date.getTime() > todayStart });
+    }
+  }
+  if (candidates.length) {
+    candidates.sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    const ambiguous = candidates.some(other => other.score === best.score && other.date !== best.date);
+    return { date: best.date, reason: best.future ? '识别的交易日期在未来，请核对' : ambiguous ? '识别到多个日期，请核对交易日期' : invalidLabelledDate ? '识别到无效日期，请核对交易日期' : '' };
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(partialDatePattern);
+    if (!match) continue;
+    const date = calendarDate(today.getFullYear(), Number(match[1]), Number(match[2]));
+    if (!date) return { date: fallback, reason: '识别的交易日期无效，请核对' };
+    return { date: formatDate(date), reason: '日期缺少年份，请核对' };
+  }
+  return { date: fallback, reason: invalidLabelledDate ? '识别的交易日期无效，请核对' : '' };
+}
 
 function amountFromLine(line) {
   const cleaned = line.replace(/,/g, '');
@@ -32,21 +71,47 @@ function findAmount(lines) {
     candidates.push({ cents, score, index: i });
   }
   candidates.sort((a, b) => b.score - a.score || a.index - b.index);
-  return candidates[0] || null;
+  if (candidates.length) return candidates[0];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/余额|优惠|红包|积分|手续费|原价|剩余|抵扣|折扣|省了|银行卡|尾号|时间|日期|订单号/.test(line) || /20\d{2}\s*[-/.年]\s*\d{1,2}/.test(line)) continue;
+    const match = line.replace(/,/g, '').match(/(?<!\d)(\d{1,8}\.\d{1,2})(?!\d)/);
+    if (!match) continue;
+    const cents = Math.round(Number(match[1]) * 100);
+    if (Number.isSafeInteger(cents) && cents > 0 && cents <= 10000000000) return { cents, score: 1, index: i };
+  }
+  return null;
 }
 
-function findMerchant(lines) {
-  for (const line of lines) {
-    const match = line.match(/(?:商户(?:名称)?|收款方|付款方|店铺(?:名称)?|交易对方|对方)\s*[:：]?\s*(.{2,40})/);
-    if (match) {
-      const merchant = match[1].trim().replace(/^(?:名称|信息)\s*[:：]?\s*/, '');
-      if (merchant && !/^(?:微信支付|支付宝|支付成功|付款成功|收款成功)$/.test(merchant)) return merchant.slice(0, 40);
-    }
+const merchantLabel = /^(?:商户(?:全称|名称)?|收款方(?:全称|名称)?|付款方|收款人|交易对方|对方(?:名称)?|店铺(?:名称)?|商家(?:名称)?)\s*[:：]?\s*(.*)$/;
+const productLabel = /^(?:商品\/服务|商品(?:说明|名称|详情|信息)?|订单商品|交易商品|交易内容|付款说明|购买商品)\s*[:：]?\s*(.*)$/;
+const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|订单号|交易单号|商户单号|流水号|付款方式|支付方式|银行卡|复制|完成|查看详情|感谢使用|¥)/;
+
+function cleanDetail(value) {
+  const cleaned = String(value || '').replace(/^[\s:：·•—-]+/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
+}
+
+function findLabeledDetail(lines, label) {
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(label);
+    if (!match) continue;
+    const inline = cleanDetail(match[1]);
+    if (inline) return inline;
+    const next = cleanDetail(lines[i + 1]);
+    if (next) return next;
   }
   return '';
 }
 
-function guessCategory(text, type) {
+function findMerchant(lines) {
+  const labeled = findLabeledDetail(lines, merchantLabel);
+  if (labeled) return { name: labeled, needsReview: false };
+  const candidates = lines.filter((line, index) => cleanDetail(line) && !(index > 0 && productLabel.test(lines[index - 1])) && !/金额|合计|时间|日期|订单|账单|备注|分类|收款机构|清算机构|支付奖励|推荐服务/.test(line));
+  return candidates.length === 1 ? { name: cleanDetail(candidates[0]), needsReview: true } : { name: '', needsReview: false };
+}
+
+function classifyBuiltIn(text, type) {
   if (type === 'income') {
     if (/退款|退货|退回/.test(text)) return '退款';
     if (/工资|薪资|薪酬/.test(text)) return '工资';
@@ -54,7 +119,7 @@ function guessCategory(text, type) {
     if (/兼职|稿费|劳务/.test(text)) return '兼职';
     return '其他';
   }
-  if (/餐|饭|外卖|咖啡|奶茶|火锅|面馆|肯德基|麦当劳|美团|饿了么|便利店|超市|水果/.test(text)) return '餐饮';
+  if (/餐|饭|外卖|咖啡|奶茶|火锅|面馆|肯德基|麦当劳|美团|饿了么|便利店|超市|水果|古茗|蜜雪冰城|霸王茶姬|喜茶|奈雪|茶百道|瑞幸|星巴克|库迪|Manner/i.test(text)) return '餐饮';
   if (/地铁|公交|打车|滴滴|高铁|机票|停车|加油|出行/.test(text)) return '交通';
   if (/淘宝|京东|拼多多|购物|商城|服饰|优衣库/.test(text)) return '购物';
   if (/房租|物业|水费|电费|燃气|宽带|家居/.test(text)) return '居家';
@@ -64,7 +129,19 @@ function guessCategory(text, type) {
   return '其他';
 }
 
-export function parseOCR(rawText, today = new Date()) {
+function guessCategory(text, type, customCategories = [], product = '', merchant = '') {
+  const custom = customCategories.filter(c => c.type === type && c.name !== '其他' && c.name.length >= 2).sort((a, b) => b.name.length - a.name.length);
+  for (const source of [product, merchant, text]) {
+    if (!source) continue;
+    const matchedCustom = custom.find(c => source.includes(c.name));
+    if (matchedCustom) return matchedCustom.name;
+    const builtIn = classifyBuiltIn(source, type);
+    if (builtIn !== '其他') return builtIn;
+  }
+  return '其他';
+}
+
+export function parseOCR(rawText, today = new Date(), customCategories = []) {
   const text = normalize(rawText).trim();
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '其他', merchant: '', note: '' };
@@ -73,15 +150,20 @@ export function parseOCR(rawText, today = new Date()) {
   const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功/.test(text);
   const type = income && !expense ? 'income' : 'expense';
   const amount = findAmount(lines);
-  const merchant = findMerchant(lines);
-  const note = merchant || (type === 'income' ? '屏幕识别收入' : '屏幕识别支出');
-  const category = guessCategory(`${merchant}\n${text}`, type);
-  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const product = findLabeledDetail(lines, productLabel);
+  const merchantResult = findMerchant(lines);
+  const merchant = merchantResult.name;
+  const note = product ? '商品：' + product : '';
+  const category = guessCategory(text, type, customCategories, product, merchant);
+  const foundDate = findDate(lines, today);
+  const date = foundDate.date;
   let reason = '';
   if (failed) reason = '画面显示交易未完成，请核对';
   else if (!income && !expense) reason = '没有找到付款或收款成功字样，请核对';
   else if (income && expense) reason = '收支方向不明确，请核对';
   else if (!amount) reason = '没有找到明确的交易金额，请核对';
   else if (amount.score < 3) reason = '金额缺少交易标签，请核对';
-  return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, merchant, note, date };
+  else if (foundDate.reason) reason = foundDate.reason;
+  else if (merchantResult.needsReview) reason = '商户名称由画面推测，请核对';
+  return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, merchant, product, note, date };
 }

@@ -316,6 +316,7 @@ function reviewOCR(result) {
   $('#entry-amount').value = result.amountCents ? (result.amountCents / 100).toFixed(2) : '';
   $('#entry-merchant').value = result.merchant || '';
   $('#entry-date').value = result.date || today();
+  $('#entry-note').value = result.note || '';
 }
 function captureFromURL() {
   const hashParams = new URLSearchParams(location.hash.slice(1));
@@ -324,9 +325,9 @@ function captureFromURL() {
   if (!params) return;
   history.replaceState(null, '', location.pathname);
   if (params.has('ocr')) {
-    const result = parseOCR(params.get('ocr') || '');
+    const result = parseOCR(params.get('ocr') || '', new Date(), customCategories);
     if (result.status !== 'auto') { reviewOCR(result); return; }
-    const row = { id:newId(), type:result.type, amountCents:result.amountCents, merchant:result.merchant || '', category:result.category, date:result.date, note:'', createdAt:Date.now() };
+    const row = { id:newId(), type:result.type, amountCents:result.amountCents, merchant:result.merchant || '', category:result.category, date:result.date, note:result.note || '', createdAt:Date.now() };
     const previous = records;
     records = [...records,row];
     if (!persist()) { records = previous; return; }
@@ -353,8 +354,8 @@ function captureFromURL() {
 }
 async function copyShortcutURL() {
   const base = new URL('./', location.href);
-  base.hash = new URLSearchParams({ amount:'25', merchant:'便利店', category:'餐饮' }).toString();
-  try { await navigator.clipboard.writeText(base.href); showToast('快捷指令网址示例已复制'); }
+  base.hash = 'ocr=';
+  try { await navigator.clipboard.writeText(base.href); showToast('截屏识别网址前缀已复制'); }
   catch { showToast('复制失败，请手动复制网址'); }
 }
 

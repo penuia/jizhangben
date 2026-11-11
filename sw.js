@@ -1,5 +1,5 @@
-const CACHE = 'jizhangben-v16';
-const ASSETS = ['./', './index.html', './style.css?v=16', './app.js?v=16', './parser.mjs', './manifest.webmanifest', './icon.svg', './icon-180.png'];
+const CACHE = 'jizhangben-v18';
+const ASSETS = ['./', './index.html', './style.css?v=18', './app.js?v=18', './parser.mjs', './manifest.webmanifest', './icon.svg', './icon-180.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
