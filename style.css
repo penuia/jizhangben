@@ -226,3 +226,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,label:focus-within
 .nav-item.active,.setting-row span:last-child,.text-button.save,.type-switch button.selected,.amount-field b,.period-switch button.selected{color:#5B92E5}
 .fab,.inline-form button,.category-form button{background:#5B92E5}
 .fab{box-shadow:0 9px 21px #5B92E54d}
+.entry-dialog:focus{outline:none}
+.dialog-head .text-button:focus-visible{outline:none;text-decoration:underline;text-underline-offset:4px}

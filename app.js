@@ -210,6 +210,7 @@ function openEntry(row = null) {
   $('#delete-entry').hidden = !editingId;
   renderCategories();
   $('#entry-dialog').showModal();
+  $('#entry-dialog').focus({ preventScroll: true });
 }
 function closeEntry() { $('#entry-dialog').close(); editingId = null; }
 function parseAmount(raw) {
