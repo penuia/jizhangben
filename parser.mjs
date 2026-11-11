@@ -106,6 +106,8 @@ function findAmount(lines) {
 
 const merchantLabel = /^(?:商户(?:全称|名称)?|收款方(?:全称|名称)?(?!式)|付款方(?!式)|收款人|交易对方|对方(?:名称)?|店铺(?:名称)?|商家(?:名称)?)\s*[:：]?\s*(.*)$/;
 const productLabel = /^(?:商品\/服务|商品(?:说明|名称|详情|信息)?|订单商品|交易商品|交易内容|付款说明|购买商品)\s*[:：]?\s*(.*)$/;
+const wechatItemLabel = /^商品(?![^\s:：])\s*[:：]?\s*(.*)$/;
+const alipayDescriptionLabel = /^商品说明\s*[:：]?\s*(.*)$/;
 const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|订单号|交易单号|商户单号|流水号|付款方式|支付方式|银行卡|复制|完成|查看详情|感谢使用|¥)/;
 
 function cleanDetail(value) {
@@ -118,11 +120,15 @@ function findLabeledDetail(lines, label) {
     const match = lines[i].match(label);
     if (!match) continue;
     const inline = cleanDetail(match[1]);
-    if (inline) return inline;
+    if (inline) {
+      const continuation = lines[i + 1] || '';
+      if ((label === productLabel || label === alipayDescriptionLabel) && /[A-Za-z]$/.test(inline) && /^[A-Za-z]{2,16}$/.test(continuation)) return (inline + continuation).slice(0, 60);
+      return inline;
+    }
     const next = cleanDetail(lines[i + 1]);
     if (next) {
       const continuation = lines[i + 2] || '';
-      if (label === productLabel && /[A-Za-z]$/.test(next) && /^[A-Za-z]{2,16}$/.test(continuation)) return (next + continuation).slice(0, 60);
+      if ((label === productLabel || label === alipayDescriptionLabel) && /[A-Za-z]$/.test(next) && /^[A-Za-z]{2,16}$/.test(continuation)) return (next + continuation).slice(0, 60);
       return next;
     }
   }
@@ -177,9 +183,13 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   const type = income && !expense ? 'income' : 'expense';
   const amount = findAmount(lines);
   const product = findLabeledDetail(lines, productLabel);
+  const wechatItem = findLabeledDetail(lines, wechatItemLabel);
+  const alipayDescription = findLabeledDetail(lines, alipayDescriptionLabel);
   const merchantResult = findMerchant(lines);
-  const merchant = merchantResult.name;
-  const note = product ? '商品：' + product : '';
+  const alipayHeadline = /收款方全称|支付宝|账单分类/.test(text) && amount?.index > 0 ? cleanDetail(lines[amount.index - 1]) : '';
+  const preferredMerchant = wechatItem || alipayDescription || alipayHeadline;
+  const merchant = preferredMerchant || merchantResult.name;
+  const note = product && product !== merchant ? '商品：' + product : '';
   const category = guessCategory(text, type, customCategories, product, merchant);
   const foundDate = findDate(lines, today);
   const date = foundDate.date;
@@ -190,6 +200,6 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   else if (!amount) reason = '没有找到明确的交易金额，请核对';
   else if (amount.score < 3) reason = '金额缺少交易标签，请核对';
   else if (foundDate.reason) reason = foundDate.reason;
-  else if (merchantResult.needsReview) reason = '商户名称由画面推测，请核对';
+  else if (!preferredMerchant && merchantResult.needsReview) reason = '商户名称由画面推测，请核对';
   return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, merchant, product, note, date };
 }

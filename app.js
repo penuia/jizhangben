@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs?v=21';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs?v=22';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
