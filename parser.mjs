@@ -53,7 +53,7 @@ function findDate(lines, today) {
 
 function amountFromLine(line) {
   const cleaned = line.replace(/,/g, '');
-  const match = cleaned.match(/(?:¥\s*|(?:实付款|实付金额|付款金额|支付金额|收款金额|到账金额|交易金额|实收金额|订单金额|金额|合计)\s*[:：]?\s*)(\d{1,8}(?:\.\d{1,2})?)/i);
+  const match = cleaned.match(/(?:¥\s*[-−]?\s*|(?:实付款|实付金额|付款金额|支付金额|收款金额|到账金额|交易金额|实收金额|订单金额|金额|合计)\s*[:：]?\s*[-−]?\s*¥?\s*)(\d{1,8}(?:\.\d{1,2})?)/i);
   if (!match) return null;
   const cents = Math.round(Number(match[1]) * 100);
   return Number.isSafeInteger(cents) && cents > 0 && cents <= 10000000000 ? cents : null;
@@ -61,12 +61,18 @@ function amountFromLine(line) {
 
 function findAmount(lines) {
   const candidates = [];
+  const strongAmountLabel = /实付款|实付金额|付款金额|支付金额|收款金额|到账金额|交易金额|实收金额/;
+  const amountLabel = /订单金额|金额|合计/;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (/余额|优惠|红包|积分|手续费|原价|剩余|抵扣|折扣|省了|付款方式|银行卡|尾号/.test(line)) continue;
-    const cents = amountFromLine(line);
-    if (cents === null) continue;
-    let score = /实付款|实付金额|付款金额|支付金额|收款金额|到账金额|交易金额|实收金额/.test(line) ? 5 : /订单金额|金额|合计/.test(line) ? 3 : /实付款|实付金额|付款金额|支付金额|收款金额|到账金额|交易金额|实收金额/.test(lines[i - 1] || '') ? 5 : /支付成功|付款成功|收款成功/.test(line) ? 4 : /支付成功|付款成功|收款成功/.test(lines[i - 1] || '') ? 4 : 2;
+    const previous = lines[i - 1] || '';
+    let cents = amountFromLine(line);
+    if (cents === null && (strongAmountLabel.test(previous) || amountLabel.test(previous)) && /^\s*[-−]?\s*¥?\s*\d{1,8}(?:\.\d{1,2})?\s*$/.test(line)) {
+      cents = Math.round(Number(line.replace(/[^\d.]/g, '')) * 100);
+    }
+    if (cents === null || !Number.isSafeInteger(cents) || cents <= 0 || cents > 10000000000) continue;
+    let score = strongAmountLabel.test(line) || strongAmountLabel.test(previous) ? 5 : amountLabel.test(line) || amountLabel.test(previous) ? 3 : /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(line) || /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(previous) ? 4 : 2;
     if (i > 10) score -= 1;
     candidates.push({ cents, score, index: i });
   }
@@ -147,7 +153,7 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '其他', merchant: '', note: '' };
   const failed = /支付失败|付款失败|收款失败|交易失败|支付中|待支付|待付款|未支付|已取消|交易关闭|退款中/.test(text);
   const income = /收款成功|已收款|到账成功|入账成功|收入成功|退款成功|退款到账/.test(text);
-  const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功/.test(text);
+  const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功|交易成功|交易已完成|订单已完成/.test(text);
   const type = income && !expense ? 'income' : 'expense';
   const amount = findAmount(lines);
   const product = findLabeledDetail(lines, productLabel);
@@ -159,7 +165,7 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   const date = foundDate.date;
   let reason = '';
   if (failed) reason = '画面显示交易未完成，请核对';
-  else if (!income && !expense) reason = '没有找到付款或收款成功字样，请核对';
+  else if (!income && !expense) reason = '没有找到交易成功或收付款完成提示，请核对';
   else if (income && expense) reason = '收支方向不明确，请核对';
   else if (!amount) reason = '没有找到明确的交易金额，请核对';
   else if (amount.score < 3) reason = '金额缺少交易标签，请核对';
