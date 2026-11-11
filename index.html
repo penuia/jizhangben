@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-180.png">
-  <link rel="stylesheet" href="./style.css?v=27">
+  <link rel="stylesheet" href="./style.css?v=28">
   <title>记账本</title>
 </head>
 <body>
@@ -38,7 +38,6 @@
             <div><small>本月结余</small><strong id="expense-total">¥0.00</strong></div>
           </div>
         </div>
-        <button id="clipboard-import" class="clipboard-import" type="button">📋 从剪贴板记账</button>
         <div class="section-head"><div><h2>账单记录</h2></div><span><span id="record-count">共 0 笔</span> · 左滑可操作</span></div>
         <div id="transaction-list" class="transaction-list"></div>
       </section>
@@ -65,8 +64,8 @@
         <div class="paper-card settings-card"><h3>月度预算</h3><p>预算只保存在本机。</p><div class="inline-form"><input id="monthly-budget" type="text" inputmode="decimal" placeholder="例如 3000.00" aria-label="月度预算"><button id="save-budget" type="button">保存</button></div></div>
         <div class="paper-card settings-card"><h3>自定义分类</h3><p>分别添加支出或收入分类，已有账目不会因删除分类而改变。</p><form id="category-form" class="category-form"><select id="new-category-type" aria-label="分类类型"><option value="expense">支出</option><option value="income">收入</option></select><input id="new-category-name" type="text" maxlength="12" placeholder="分类名称" aria-label="分类名称" required><input id="new-category-icon" type="text" maxlength="8" placeholder="图标" aria-label="分类图标，可选"><button type="submit">添加</button></form><div id="custom-category-list" class="custom-category-list"></div></div>
         <div class="paper-card settings-card"><h3>我的数据</h3><p>换手机或清除 Safari 数据前，记得导出备份。</p><button class="setting-row" id="export-csv" type="button"><span>导出 CSV 表格</span><span>↗</span></button><button class="setting-row" id="export-json" type="button"><span>导出完整备份</span><span>↗</span></button><label class="setting-row" for="import-file"><span>从备份恢复</span><span>›</span></label><input id="import-file" type="file" accept=".json,application/json" hidden><label class="setting-row" for="merge-file"><span>合并另一处的备份</span><span>›</span></label><input id="merge-file" type="file" accept=".json,application/json" hidden><p class="privacy-small">合并会添加新账目和分类，保留当前预算。请先分别保存两边的备份。</p></div>
-        <div class="paper-card settings-card"><h3>快捷指令记账</h3><p>要记到主屏幕 App：快捷指令截屏并提取文字后，将文字复制到剪贴板；打开本 App，点首页“从剪贴板记账”。</p><p>也可用 <code>#ocr=</code> 网址在 Safari 记账，或用 <code>#amount=25&amp;merchant=便利店&amp;category=餐饮</code> 直接记账。</p><button class="setting-row" id="copy-shortcut-url" type="button"><span>复制截屏识别网址前缀</span><span>⧉</span></button><p class="privacy-small">网址参数请使用 <code>#</code>。网址片段不会随网页请求发送给 GitHub Pages。</p></div>
-        <p class="privacy-note">🔒 账目只保存在当前浏览器中，不会上传。iPhone 的 Safari 与主屏幕网页 App 使用独立存储，纯本地模式无法自动同步。</p>
+        <div class="paper-card settings-card"><h3>快捷指令记账</h3><p>轻点背面两下截屏识别后，快捷指令会打开 Safari 并自动记账；识别不确定时会弹出核对表单。</p><p>截屏识别使用 <code>#ocr=</code> 网址；已知金额也可用 <code>#amount=25&amp;merchant=便利店&amp;category=餐饮</code> 直接记账。</p><button class="setting-row" id="copy-shortcut-url" type="button"><span>复制截屏识别网址前缀</span><span>⧉</span></button><p class="privacy-small">网址参数请使用 <code>#</code>。网址片段不会随网页请求发送给 GitHub Pages。</p></div>
+        <p class="privacy-note">🔒 账目只保存在这台 iPhone 的 Safari 中，不会上传。请始终通过 Safari 使用记账本。</p>
       </section>
     </main>
 
@@ -88,15 +87,8 @@
     </form>
   </dialog>
 
-  <dialog id="paste-dialog" class="paste-dialog" aria-labelledby="paste-title">
-    <h2 id="paste-title">粘贴识别文字</h2>
-    <p>如果系统没有允许直接读取剪贴板，请在下方长按并选择“粘贴”。</p>
-    <textarea id="paste-text" rows="7" placeholder="在这里长按，粘贴快捷指令识别的文字"></textarea>
-    <div class="paste-actions"><button id="paste-cancel" type="button">取消</button><button id="paste-submit" type="button">识别记账</button></div>
-  </dialog>
-
   <div id="shortcut-card" class="shortcut-card" role="status" aria-live="polite" hidden><span class="shortcut-spark" aria-hidden="true">🕊️</span><div><strong>快捷指令自动记账成功 🕊️</strong><small id="shortcut-detail"></small></div><button id="close-shortcut-card" type="button" aria-label="关闭提示">×</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=27"></script>
+  <script type="module" src="./app.js?v=28"></script>
 </body>
 </html>

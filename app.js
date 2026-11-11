@@ -26,7 +26,6 @@ let entryType = 'expense';
 let entryCategory = '餐饮';
 let toastTimer;
 let openSwipeRow = null;
-let lastClipboardImport = null;
 
 function loadRecords() {
   try { const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(value) ? value.filter(validRecord) : []; }
@@ -420,25 +419,6 @@ function recordFromOCR(rawText) {
   showShortcutCard(row);
   return true;
 }
-async function importFromClipboard() {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text.trim()) { showToast('剪贴板没有文字'); return; }
-    if (lastClipboardImport?.text === text && Date.now() - lastClipboardImport.at < 60000) { showToast('这段文字刚刚已经记过'); return; }
-    if (recordFromOCR(text)) lastClipboardImport = { text, at: Date.now() };
-  } catch {
-    $('#paste-text').value = '';
-    $('#paste-dialog').showModal();
-    $('#paste-text').focus();
-  }
-}
-function importPastedText() {
-  const text = $('#paste-text').value.trim();
-  if (!text) { showToast('请先粘贴识别文字'); return; }
-  $('#paste-dialog').close();
-  if (lastClipboardImport?.text === text && Date.now() - lastClipboardImport.at < 60000) { showToast('这段文字刚刚已经记过'); return; }
-  if (recordFromOCR(text)) lastClipboardImport = { text, at: Date.now() };
-}
 function captureFromURL() {
   const hashParams = new URLSearchParams(location.hash.slice(1));
   const queryParams = new URLSearchParams(location.search);
@@ -482,9 +462,6 @@ $('#year-prev').addEventListener('click', () => shiftYear(-1));
 $('#year-next').addEventListener('click', () => shiftYear(1));
 document.querySelectorAll('.period-switch button').forEach(button => button.addEventListener('click', () => setStatsPeriod(button.dataset.period)));
 $('#add-button').addEventListener('click', () => openEntry());
-$('#clipboard-import').addEventListener('click', importFromClipboard);
-$('#paste-cancel').addEventListener('click', () => $('#paste-dialog').close());
-$('#paste-submit').addEventListener('click', importPastedText);
 $('#close-entry').addEventListener('click', closeEntry);
 $('#entry-form').addEventListener('submit', saveEntry);
 $('#delete-entry').addEventListener('click', deleteEntry);
