@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs?v=22';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs?v=24';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
@@ -294,6 +294,40 @@ async function importJSON(event) {
   } catch { showToast('备份文件格式不正确'); }
   finally { event.target.value = ''; }
 }
+async function mergeJSON(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== '小账本' || ![1,2].includes(data.version) || !Array.isArray(data.records) || !data.records.every(validRecord)) throw new Error('bad file');
+    if (data.version === 2 && (!Array.isArray(data.customCategories) || !data.customCategories.every(validCustomCategory) || !Number.isSafeInteger(data.monthlyBudget) || data.monthlyBudget < 0)) throw new Error('bad file');
+    const knownIds = new Set(records.map(row => row.id));
+    const additions = data.records.filter(row => { if (knownIds.has(row.id)) return false; knownIds.add(row.id); return true; });
+    const knownCategories = new Set([...EXPENSE_CATEGORIES.map(c => 'expense:' + c.name), ...INCOME_CATEGORIES.map(c => 'income:' + c.name), ...customCategories.map(c => c.type + ':' + c.name)]);
+    const categoryAdditions = (data.version === 2 ? data.customCategories : []).filter(c => { const key = c.type + ':' + c.name; if (knownCategories.has(key)) return false; knownCategories.add(key); return true; });
+    if (!additions.length && !categoryAdditions.length) { showToast('备份中没有新账目或分类'); return; }
+    if (!window.confirm('将添加 ' + additions.length + ' 笔新账目、' + categoryAdditions.length + ' 个分类；当前账目和预算会保留。继续吗？')) return;
+    const nextRecords = [...records, ...additions];
+    const nextCategories = [...customCategories, ...categoryAdditions];
+    const previousRecordRaw = localStorage.getItem(STORAGE_KEY);
+    const previousCategoryRaw = localStorage.getItem(CATEGORY_KEY);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
+      localStorage.setItem(CATEGORY_KEY, JSON.stringify(nextCategories));
+    } catch {
+      for (const [key, value] of [[STORAGE_KEY, previousRecordRaw], [CATEGORY_KEY, previousCategoryRaw]]) {
+        try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch {}
+      }
+      showToast('合并失败：浏览器存储空间不可用');
+      return;
+    }
+    records = nextRecords;
+    customCategories = nextCategories;
+    render();
+    showToast('已合并 ' + additions.length + ' 笔新账目');
+  } catch { showToast('备份文件格式不正确'); }
+  finally { event.target.value = ''; }
+}
 function saveBudget() {
   const raw = $('#monthly-budget').value.trim();
   const cents = raw ? parseAmount(raw) : 0;
@@ -379,6 +413,7 @@ $('#category-form').addEventListener('submit', addCustomCategory);
 $('#export-csv').addEventListener('click', exportCSV);
 $('#export-json').addEventListener('click', exportJSON);
 $('#import-file').addEventListener('change', importJSON);
+$('#merge-file').addEventListener('change', mergeJSON);
 $('#copy-shortcut-url').addEventListener('click', copyShortcutURL);
 $('#close-shortcut-card').addEventListener('click', () => { $('#shortcut-card').hidden = true; });
 window.addEventListener('hashchange', captureFromURL);

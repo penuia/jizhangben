@@ -98,9 +98,10 @@ button:focus:not(:focus-visible){outline:none}
 .nav-item.active{color:#4A7BB0}
 .fab{position:fixed;z-index:9;left:50%;bottom:calc(77px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:6px;height:49px;border:0;border-radius:999px;padding:0 21px;background:#4A7BB0;color:white;box-shadow:0 9px 21px #4A7BB04f;font-size:13px;font-weight:800}
 .fab span{font-size:24px;font-weight:400}
-.entry-dialog{width:min(calc(100% - 18px),600px);max-height:calc(100dvh - 20px);margin:auto auto 0;border:0;border-radius:24px 24px 0 0;background:#fffdfb;color:#29435b;padding:0 20px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px #29435b40;overflow:auto}
+.entry-dialog{width:min(calc(100% - 32px),600px);height:min(700px,calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));max-height:calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:auto;border:0;border-radius:24px;background:#fffdfb;color:#29435b;padding:0;box-shadow:0 12px 40px #29435b40;overflow:hidden}
+.entry-dialog form{height:100%;overflow-y:auto;overscroll-behavior:contain;padding:0 20px 20px;-webkit-overflow-scrolling:touch}
 .entry-dialog::backdrop{background:#203e5a75}
-.dialog-head{display:flex;justify-content:space-between;align-items:center;height:61px}
+.dialog-head{position:sticky;z-index:1;top:0;display:flex;justify-content:space-between;align-items:center;height:61px;background:#fffdfb}
 .dialog-head h2{font-size:16px;margin:0}
 .ocr-review-message{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:#fff1dc;color:#765b36;font-size:13px;line-height:1.5}
 .text-button{min-width:45px;height:42px;border:0;background:transparent;color:#8ba2b5;font-size:14px}
@@ -132,7 +133,7 @@ button:focus:not(:focus-visible){outline:none}
 .shortcut-card strong{display:block;color:#315c81;font-size:13px}
 .shortcut-card small{display:block;color:#819bb0;font-size:11px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shortcut-card button{border:0;background:transparent;color:#8ca3b5;font-size:23px;width:26px;height:30px}
-@media(min-width:700px){.app{border-left:1px solid #e5e9eb;border-right:1px solid #e5e9eb}.entry-dialog{margin:auto;border-radius:24px;max-height:90vh}.fab{left:calc(50% + 180px);transform:none}}
+@media(min-width:700px){.app{border-left:1px solid #e5e9eb;border-right:1px solid #e5e9eb}.fab{left:calc(50% + 180px);transform:none}}
 @media(max-width:370px){.page{padding-left:15px;padding-right:15px}.topbar{padding-left:18px;padding-right:18px}.hero-copy h1{font-size:26px}.month-row h2{font-size:22px}.summary-bottom{gap:11px}.summary-bottom strong{font-size:14px}}
 
 /* 首页保留简洁留白和柔和纸张色。 */
