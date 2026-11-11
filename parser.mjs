@@ -10,7 +10,18 @@ export const INCOME_CATEGORIES = [
   { name: '其他', icon: '•••', color: '#a8b5a9' }
 ];
 
-const normalize = value => String(value || '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/．/g, '.').replace(/，/g, ',').replace(/：/g, ':').replace(/￥/g, '¥');
+function decodeShortcutText(value) {
+  let text = String(value || '');
+  for (let i = 0; i < 2 && /%[0-9a-f]{2}/i.test(text); i++) {
+    let decoded;
+    try { decoded = decodeURIComponent(text.replace(/%(?![0-9a-f]{2})/gi, '%25')); }
+    catch { decoded = text.replace(/%0d%0a|%0a|%0d/gi, '\n').replace(/%20/gi, ' '); }
+    if (decoded === text) break;
+    text = decoded;
+  }
+  return text;
+}
+const normalize = value => decodeShortcutText(value).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/．/g, '.').replace(/，/g, ',').replace(/：/g, ':').replace(/￥/g, '¥');
 const dateLabel = /交易时间|支付时间|付款时间|收款时间|成交时间|完成时间|到账时间/;
 const fullDatePattern = /(?<!\d)(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?(?!\d)/g;
 const partialDatePattern = /(?<!\d)(\d{1,2})月\s*(\d{1,2})日(?!\d)/;
@@ -71,8 +82,12 @@ function findAmount(lines) {
     if (cents === null && (strongAmountLabel.test(previous) || amountLabel.test(previous)) && /^\s*[-−]?\s*¥?\s*\d{1,8}(?:\.\d{1,2})?\s*$/.test(line)) {
       cents = Math.round(Number(line.replace(/[^\d.]/g, '')) * 100);
     }
+    const standalone = /^\s*[-−]\s*\d{1,8}\.\d{1,2}\s*$/.test(line);
+    if (cents === null && standalone && i < 15 && /支付成功|付款成功|交易成功|交易已完成/.test(lines.slice(i + 1, i + 4).join(' '))) {
+      cents = Math.round(Number(line.replace(/[^\d.]/g, '')) * 100);
+    }
     if (cents === null || !Number.isSafeInteger(cents) || cents <= 0 || cents > 10000000000) continue;
-    let score = strongAmountLabel.test(line) || strongAmountLabel.test(previous) ? 5 : amountLabel.test(line) || amountLabel.test(previous) ? 3 : /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(line) || /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(previous) ? 4 : 2;
+    let score = strongAmountLabel.test(line) || strongAmountLabel.test(previous) ? 5 : standalone ? 4 : amountLabel.test(line) || amountLabel.test(previous) ? 3 : /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(line) || /支付成功|付款成功|收款成功|交易成功|交易已完成/.test(previous) ? 4 : 2;
     if (i > 10) score -= 1;
     candidates.push({ cents, score, index: i });
   }
@@ -89,7 +104,7 @@ function findAmount(lines) {
   return null;
 }
 
-const merchantLabel = /^(?:商户(?:全称|名称)?|收款方(?:全称|名称)?|付款方|收款人|交易对方|对方(?:名称)?|店铺(?:名称)?|商家(?:名称)?)\s*[:：]?\s*(.*)$/;
+const merchantLabel = /^(?:商户(?:全称|名称)?|收款方(?:全称|名称)?(?!式)|付款方(?!式)|收款人|交易对方|对方(?:名称)?|店铺(?:名称)?|商家(?:名称)?)\s*[:：]?\s*(.*)$/;
 const productLabel = /^(?:商品\/服务|商品(?:说明|名称|详情|信息)?|订单商品|交易商品|交易内容|付款说明|购买商品)\s*[:：]?\s*(.*)$/;
 const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|订单号|交易单号|商户单号|流水号|付款方式|支付方式|银行卡|复制|完成|查看详情|感谢使用|¥)/;
 
@@ -105,7 +120,11 @@ function findLabeledDetail(lines, label) {
     const inline = cleanDetail(match[1]);
     if (inline) return inline;
     const next = cleanDetail(lines[i + 1]);
-    if (next) return next;
+    if (next) {
+      const continuation = lines[i + 2] || '';
+      if (label === productLabel && /[A-Za-z]$/.test(next) && /^[A-Za-z]{2,16}$/.test(continuation)) return (next + continuation).slice(0, 60);
+      return next;
+    }
   }
   return '';
 }
@@ -125,7 +144,8 @@ function classifyBuiltIn(text, type) {
     if (/兼职|稿费|劳务/.test(text)) return '兼职';
     return '其他';
   }
-  if (/餐|饭|外卖|咖啡|奶茶|火锅|面馆|肯德基|麦当劳|美团|饿了么|便利店|超市|水果|古茗|蜜雪冰城|霸王茶姬|喜茶|奈雪|茶百道|瑞幸|星巴克|库迪|Manner/i.test(text)) return '餐饮';
+  if (/便利店|便利超市|7[- ]?ELEVEN|全家便利|罗森便利|餐|饭|外卖|咖啡|奶茶|火锅|面馆|肯德基|麦当劳|美团|饿了么|水果|古茗|蜜雪冰城|霸王茶姬|喜茶|奈雪|茶百道|瑞幸|星巴克|库迪|Manner/i.test(text)) return '餐饮';
+  if (/超市|日用百货/i.test(text)) return '购物';
   if (/地铁|公交|打车|滴滴|高铁|机票|停车|加油|出行/.test(text)) return '交通';
   if (/淘宝|京东|拼多多|购物|商城|服饰|优衣库/.test(text)) return '购物';
   if (/房租|物业|水费|电费|燃气|宽带|家居/.test(text)) return '居家';
