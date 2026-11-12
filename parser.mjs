@@ -2,7 +2,8 @@ export const EXPENSE_CATEGORIES = [
   { name: '餐饮', icon: '🍜', color: '#e7a96c' }, { name: '购物', icon: '🛍️', color: '#d7919d' },
   { name: '交通', icon: '🚇', color: '#8ab5c9' }, { name: '居家', icon: '🏠', color: '#a9b899' },
   { name: '娱乐', icon: '🎬', color: '#a697c6' }, { name: '医疗', icon: '💊', color: '#9ac7bd' },
-  { name: '学习', icon: '📚', color: '#bda887' }, { name: '其他', icon: '•••', color: '#a8b5a9' }
+  { name: '学习', icon: '📚', color: '#bda887' }, { name: '日常', icon: '☁️', color: '#a8b5a9' },
+  { name: '其他', icon: '•••', color: '#a8b5a9' }
 ];
 export const INCOME_CATEGORIES = [
   { name: '工资', icon: '💼', color: '#70ae88' }, { name: '奖金', icon: '🎁', color: '#e5b271' },
@@ -12,7 +13,8 @@ export const INCOME_CATEGORIES = [
 
 function decodeShortcutText(value) {
   let text = String(value || '');
-  for (let i = 0; i < 2 && /%[0-9a-f]{2}/i.test(text); i++) {
+  // Shortcuts may URL-encode its output more than once before Safari parses the URL.
+  for (let i = 0; i < 6 && /%[0-9a-f]{2}/i.test(text); i++) {
     let decoded;
     try { decoded = decodeURIComponent(text.replace(/%(?![0-9a-f]{2})/gi, '%25')); }
     catch { decoded = text.replace(/%0d%0a|%0a|%0d/gi, '\n').replace(/%20/gi, ' '); }
@@ -104,15 +106,16 @@ function findAmount(lines) {
   return null;
 }
 
-const merchantLabel = /^(?:商户(?:全称|名称)?|收款方(?:全称|名称)?(?!式)|付款方(?!式)|收款人|交易对方|对方(?:名称)?|店铺(?:名称)?|商家(?:名称)?)\s*[:：]?\s*(.*)$/;
-const productLabel = /^(?:商品\/服务|商品(?:说明|名称|详情|信息)?|订单商品|交易商品|交易内容|付款说明|购买商品)\s*[:：]?\s*(.*)$/;
-const wechatItemLabel = /^商品(?![^\s:：])\s*[:：]?\s*(.*)$/;
+const merchantLabel = /^(?:商户全称|商户名称|商户|收款方全称|收款方名称|收款方|付款给|转账给|收款人|交易对方|对方名称|对方|店铺名称|店铺|商家名称|商家)\s*[:：]?\s*(.*)$/;
+const productLabel = /^(?:商品\/服务|商品说明|商品名称|商品详情|商品信息|订单商品|交易商品|交易内容|付款说明|购买商品|商品)\s*[:：]?\s*(.*)$/;
+const wechatItemLabel = /^商品(?!说明|名称|详情|信息)\s*[:：]?\s*(.*)$/;
 const alipayDescriptionLabel = /^商品说明\s*[:：]?\s*(.*)$/;
-const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|订单号|交易单号|商户单号|流水号|付款方式|支付方式|银行卡|复制|完成|查看详情|感谢使用|¥)/;
+const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|当前状态|交易状态|交易服务|账单管理|订单号|交易单号|商户单号|单号|流水号|付款方式|支付方式|支付奖励|立即领取|查看扣款顺序|收单机构|银行卡|复制|完成|查看详情|感谢使用|积分|优惠券|广告|¥|\d{1,2}:\d{2}(?::\d{2})?$)/;
+const nextFieldLabel = /^(?:商户全称|商户名称|商户|商家名称|付款给|转账给|收款方全称|收款方名称|收款方|收单机构|付款方式|支付方式|支付时间|交易时间|商品说明|商品名称|商品|交易单号|商户单号|账单分类|备注)/;
 
 function cleanDetail(value) {
   const cleaned = String(value || '').replace(/^[\s:：·•—-]+/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
-  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
+  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/%[0-9a-f]{2}/i.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
 }
 
 function findLabeledDetail(lines, label) {
@@ -125,9 +128,13 @@ function findLabeledDetail(lines, label) {
       if ((label === productLabel || label === alipayDescriptionLabel) && /[A-Za-z]$/.test(inline) && /^[A-Za-z]{2,16}$/.test(continuation)) return (inline + continuation).slice(0, 60);
       return inline;
     }
-    const next = cleanDetail(lines[i + 1]);
-    if (next) {
-      const continuation = lines[i + 2] || '';
+    const limit = label === merchantLabel ? 1 : 2;
+    for (let offset = 1; offset <= limit; offset++) {
+      const raw = lines[i + offset] || '';
+      if (!raw || nextFieldLabel.test(raw)) break;
+      const next = cleanDetail(raw);
+      if (!next) continue;
+      const continuation = lines[i + offset + 1] || '';
       if ((label === productLabel || label === alipayDescriptionLabel) && /[A-Za-z]$/.test(next) && /^[A-Za-z]{2,16}$/.test(continuation)) return (next + continuation).slice(0, 60);
       return next;
     }
@@ -138,45 +145,38 @@ function findLabeledDetail(lines, label) {
 function findMerchant(lines) {
   const labeled = findLabeledDetail(lines, merchantLabel);
   if (labeled) return { name: labeled, needsReview: false };
-  const candidates = lines.filter((line, index) => cleanDetail(line) && !(index > 0 && productLabel.test(lines[index - 1])) && !/金额|合计|时间|日期|订单|账单|备注|分类|收款机构|清算机构|支付奖励|推荐服务/.test(line));
-  return candidates.length === 1 ? { name: cleanDetail(candidates[0]), needsReview: true } : { name: '', needsReview: false };
+  return { name: '', needsReview: false };
 }
 
-function classifyBuiltIn(text, type) {
-  if (type === 'income') {
-    if (/退款|退货|退回/.test(text)) return '退款';
-    if (/工资|薪资|薪酬/.test(text)) return '工资';
-    if (/奖金|红包|补贴/.test(text)) return '奖金';
-    if (/兼职|稿费|劳务/.test(text)) return '兼职';
-    return '其他';
+const paymentCategoryRules = [
+  ['餐饮', /咖啡|麦当劳|便利店|便利超市|超市|餐饮|小吃|饭店|餐厅|外卖|奶茶|火锅|面馆|肯德基|7[- ]?ELEVEN|711|全家|罗森|瑞幸|星巴克|库迪|Manner|美团|饿了么|水果/i],
+  ['交通', /滴滴|高德|地铁|公交|加油|停车|打车|高铁|机票|出行/],
+  ['购物', /淘宝|京东|拼多多|天猫|猫咪|购物|商城|服饰|优衣库/],
+  ['娱乐', /影城|KTV|网易云|腾讯视频|电影|游戏|演出|音乐/i]
+];
+
+export function classifyPayment(merchant = '', product = '') {
+  // Only use the merchant and product. The rest of the screen can contain ads and rewards.
+  for (const source of [merchant, product]) {
+    for (const [category, pattern] of paymentCategoryRules) {
+      if (pattern.test(source)) return category;
+    }
   }
-  if (/便利店|便利超市|7[- ]?ELEVEN|全家便利|罗森便利|餐|饭|外卖|咖啡|奶茶|火锅|面馆|肯德基|麦当劳|美团|饿了么|水果|古茗|蜜雪冰城|霸王茶姬|喜茶|奈雪|茶百道|瑞幸|星巴克|库迪|Manner/i.test(text)) return '餐饮';
-  if (/超市|日用百货/i.test(text)) return '购物';
-  if (/地铁|公交|打车|滴滴|高铁|机票|停车|加油|出行/.test(text)) return '交通';
-  if (/淘宝|京东|拼多多|购物|商城|服饰|优衣库/.test(text)) return '购物';
-  if (/房租|物业|水费|电费|燃气|宽带|家居/.test(text)) return '居家';
-  if (/电影|游戏|演出|会员|音乐/.test(text)) return '娱乐';
-  if (/医院|药店|诊所|医疗|挂号/.test(text)) return '医疗';
-  if (/课程|书店|培训|学费|教育/.test(text)) return '学习';
+  return '日常';
+}
+
+function guessIncomeCategory(text) {
+  if (/退款|退货|退回/.test(text)) return '退款';
+  if (/工资|薪资|薪酬/.test(text)) return '工资';
+  if (/奖金|红包|补贴/.test(text)) return '奖金';
+  if (/兼职|稿费|劳务/.test(text)) return '兼职';
   return '其他';
 }
 
-function guessCategory(text, type, customCategories = [], product = '', merchant = '') {
-  const custom = customCategories.filter(c => c.type === type && c.name !== '其他' && c.name.length >= 2).sort((a, b) => b.name.length - a.name.length);
-  for (const source of [product, merchant, text]) {
-    if (!source) continue;
-    const matchedCustom = custom.find(c => source.includes(c.name));
-    if (matchedCustom) return matchedCustom.name;
-    const builtIn = classifyBuiltIn(source, type);
-    if (builtIn !== '其他') return builtIn;
-  }
-  return '其他';
-}
-
-export function parseOCR(rawText, today = new Date(), customCategories = []) {
+export function parseOCR(rawText, today = new Date()) {
   const text = normalize(rawText).trim();
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '其他', merchant: '', note: '' };
+  if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '日常', merchant: '', note: '' };
   const failed = /支付失败|付款失败|收款失败|交易失败|支付中|待支付|待付款|未支付|已取消|交易关闭|退款中/.test(text);
   const income = /收款成功|已收款|到账成功|入账成功|收入成功|退款成功|退款到账/.test(text);
   const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功|交易成功|交易已完成|订单已完成/.test(text);
@@ -186,11 +186,14 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   const wechatItem = findLabeledDetail(lines, wechatItemLabel);
   const alipayDescription = findLabeledDetail(lines, alipayDescriptionLabel);
   const merchantResult = findMerchant(lines);
-  const alipayHeadline = /收款方全称|支付宝|账单分类/.test(text) && amount?.index > 0 ? cleanDetail(lines[amount.index - 1]) : '';
-  const preferredMerchant = wechatItem || alipayDescription || alipayHeadline;
+  const alipay = /支付宝|商品说明|支付奖励|收款方全称/.test(text);
+  const wechat = /微信支付|商户全称|财付通|交易单号/.test(text) && !alipay;
+  const aboveAmount = amount?.index > 0 ? cleanDetail(lines[amount.index - 1]) : '';
+  const belowAmount = amount && amount.index + 1 < lines.length ? cleanDetail(lines[amount.index + 1]) : '';
+  const preferredMerchant = alipay ? (alipayDescription || merchantResult.name || aboveAmount) : wechat ? (wechatItem || merchantResult.name || aboveAmount || belowAmount) : (wechatItem || alipayDescription || merchantResult.name || product || aboveAmount);
   const merchant = preferredMerchant || merchantResult.name;
   const note = product && product !== merchant ? '商品：' + product : '';
-  const category = guessCategory(text, type, customCategories, product, merchant);
+  const category = type === 'income' ? guessIncomeCategory([merchant, product, text].join(' ')) : classifyPayment(merchant, product);
   const foundDate = findDate(lines, today);
   const date = foundDate.date;
   let reason = '';
@@ -202,4 +205,24 @@ export function parseOCR(rawText, today = new Date(), customCategories = []) {
   else if (foundDate.reason) reason = foundDate.reason;
   else if (!preferredMerchant && merchantResult.needsReview) reason = '商户名称由画面推测，请核对';
   return { status: reason ? 'review' : 'auto', reason, type, amountCents: amount?.cents || null, category, merchant, product, note, date };
+}
+
+export function parsePaymentJSON(raw, today = new Date()) {
+  let value;
+  try { value = JSON.parse(decodeShortcutText(raw).trim()); }
+  catch { return { status: 'error', reason: '识别结果不是有效 JSON，未保存' }; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { status: 'error', reason: '识别结果格式不正确，未保存' };
+  const amount = value.amount;
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000000 || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) {
+    return { status: 'error', reason: '识别金额无效，未保存' };
+  }
+  const merchant = typeof value.merchant === 'string' ? cleanDetail(value.merchant) : '';
+  const validCategory = ['餐饮', '购物', '交通', '娱乐', '日常'].includes(value.category);
+  const category = validCategory ? value.category : classifyPayment(merchant);
+  const candidateDate = typeof value.date === 'string' ? value.date : '';
+  const dateParts = candidateDate.match(/^(20\d{2})-(\d{2})-(\d{2})$/);
+  const parsedDate = dateParts && calendarDate(Number(dateParts[1]), Number(dateParts[2]), Number(dateParts[3]));
+  const date = parsedDate ? formatDate(parsedDate) : formatDate(today);
+  const reason = !merchant ? '未能确认商户，请核对后保存' : !validCategory ? '分类不在五种类别中，请核对后保存' : candidateDate && !parsedDate ? '交易日期无效，请核对后保存' : '';
+  return { status: reason ? 'review' : 'auto', reason, type: 'expense', amountCents: Math.round(amount * 100), merchant, category, date, note: '' };
 }

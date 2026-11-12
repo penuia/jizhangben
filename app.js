@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR } from './parser.mjs?v=26';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR, parsePaymentJSON } from './parser.mjs?v=29';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
@@ -407,8 +407,7 @@ function reviewOCR(result) {
   $('#entry-date').value = result.date || today();
   $('#entry-note').value = result.note || '';
 }
-function recordFromOCR(rawText) {
-  const result = parseOCR(rawText, new Date(), customCategories);
+function saveShortcutResult(result) {
   if (result.status !== 'auto') { reviewOCR(result); return false; }
   const row = { id:newId(), type:result.type, amountCents:result.amountCents, merchant:result.merchant || '', category:result.category, date:result.date, note:result.note || '', createdAt:Date.now() };
   const previous = records;
@@ -419,12 +418,24 @@ function recordFromOCR(rawText) {
   showShortcutCard(row);
   return true;
 }
+function recordFromOCR(rawText) {
+  return saveShortcutResult(parseOCR(rawText));
+}
+function recordFromJSON(rawJSON) {
+  const result = parsePaymentJSON(rawJSON);
+  if (result.status === 'error') { showToast(result.reason); return false; }
+  return saveShortcutResult(result);
+}
 function captureFromURL() {
   const hashParams = new URLSearchParams(location.hash.slice(1));
   const queryParams = new URLSearchParams(location.search);
-  const params = hashParams.has('ocr') || hashParams.has('amount') ? hashParams : queryParams.has('amount') ? queryParams : null;
+  const params = hashParams.has('record') || hashParams.has('ocr') || hashParams.has('amount') ? hashParams : queryParams.has('amount') ? queryParams : null;
   if (!params) return;
   history.replaceState(null, '', location.pathname);
+  if (params.has('record')) {
+    recordFromJSON(params.get('record') || '');
+    return;
+  }
   if (params.has('ocr')) {
     recordFromOCR(params.get('ocr') || '');
     return;
