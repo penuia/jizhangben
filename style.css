@@ -118,10 +118,17 @@ button:focus:not(:focus-visible){outline:none}
 .type-switch button{flex:1;height:39px;border:0;border-radius:9px;background:transparent;color:#819bb1;font-size:13px;font-weight:750}
 .type-switch button.selected{background:#fff;color:#4A7BB0;box-shadow:0 2px 7px #5a769b1d}
 .amount-field{display:block;background:#eef5fa;border-radius:14px;padding:12px 15px;margin-bottom:17px}
-.amount-field>span{display:block;color:#7f9cb5;font-size:11px}
+.amount-field>label{display:block;color:#7f9cb5;font-size:11px}
 .amount-field div{display:flex;align-items:center;gap:6px}
 .amount-field b{color:#4A7BB0;font-size:28px}
-.amount-field input{width:100%;border:0;outline:0;background:transparent;color:#315d85;font-size:34px;font-weight:780;padding:3px 0}
+.amount-field input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#315d85;font-size:clamp(20px,6vw,34px);font-weight:780;padding:3px 0}
+.amount-field button{flex:none;border:1px solid #c9ddeb;border-radius:9px;background:#fff;color:#4A7BB0;padding:8px 10px;font-size:12px;font-weight:750}
+.calculator{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:-8px 0 17px}
+.calculator button{height:43px;border:1px solid #dce8f1;border-radius:10px;background:#f7fbfe;color:#315d85;font-size:18px;font-weight:700}
+.calculator button:nth-child(4n){background:#e9f3fb;color:#4A7BB0}
+.calculator .calc-wide{grid-column:span 2;font-size:14px}
+.calculator .calc-equals{background:#5B92E5;color:#fff;border-color:#5B92E5;font-size:19px}
+.calculator-error{margin:-8px 0 16px;color:#ae5365;font-size:12px;line-height:1.5}
 .form-group{margin-bottom:16px}
 .form-group>label{display:block;font-size:12px;font-weight:750;color:#58768e;margin-bottom:8px}
 .form-group>input{width:100%}

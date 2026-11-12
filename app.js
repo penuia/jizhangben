@@ -1,4 +1,5 @@
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR, parsePaymentJSON } from './parser.mjs?v=31';
+import { calculateAmountCents } from './calculator.mjs?v=33';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
@@ -26,6 +27,7 @@ let entryType = 'expense';
 let entryCategory = '餐饮';
 let toastTimer;
 let openSwipeRow = null;
+let calculatorJustSolved = false;
 
 function loadRecords() {
   try { const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(value) ? value.filter(validRecord) : []; }
@@ -260,6 +262,10 @@ function openEntry(row = null) {
   $('#dialog-title').textContent = editingId ? '编辑记录' : '记一笔';
   $('#ocr-review-message').hidden = true;
   $('#entry-amount').value = row ? (row.amountCents / 100).toFixed(2) : '';
+  $('#calculator').hidden = true;
+  $('#toggle-calculator').setAttribute('aria-expanded', 'false');
+  $('#calculator-error').hidden = true;
+  calculatorJustSolved = false;
   $('#entry-merchant').value = row?.merchant || '';
   $('#entry-date').value = row?.date || today();
   $('#entry-note').value = row?.note || '';
@@ -273,10 +279,52 @@ function parseAmount(raw) {
   if (!/^\d{1,8}(?:\.\d{1,2})?$/.test(raw) || Number(raw) <= 0) return null;
   return Math.round(Number(raw) * 100);
 }
+function toggleCalculator() {
+  const panel = $('#calculator');
+  panel.hidden = !panel.hidden;
+  $('#toggle-calculator').setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) $('#entry-amount').blur();
+}
+function calculatorError(message = '') {
+  const error = $('#calculator-error');
+  error.textContent = message;
+  error.hidden = !message;
+}
+function calculatorKey(key) {
+  const input = $('#entry-amount');
+  let value = input.value.trim();
+  input.blur();
+  calculatorError();
+  if (key === 'C') { input.value = ''; calculatorJustSolved = false; return; }
+  if (key === '⌫') { input.value = value.slice(0, -1); calculatorJustSolved = false; return; }
+  if (key === '=') {
+    const cents = calculateAmountCents(value);
+    if (cents === null) { calculatorError('算式有误、除以零或结果不是有效金额'); return; }
+    input.value = (cents / 100).toFixed(2);
+    calculatorJustSolved = true;
+    return;
+  }
+  if (/^[+−×÷]$/.test(key)) {
+    if (!value) { if (key === '−') input.value = key; return; }
+    input.value = /[+−×÷]$/.test(value) ? value.slice(0, -1) + key : value + key;
+    calculatorJustSolved = false;
+    return;
+  }
+  if (!/^[0-9.]$/.test(key)) return;
+  if (calculatorJustSolved) value = '';
+  calculatorJustSolved = false;
+  if (key === '.') {
+    const current = value.split(/[+−×÷]/).pop();
+    if (current.includes('.')) return;
+    input.value = value + (current ? '.' : '0.');
+  } else {
+    input.value = value === '0' ? key : value + key;
+  }
+}
 function saveEntry(event) {
   event.preventDefault();
-  const cents = parseAmount($('#entry-amount').value.trim());
-  if (!cents) { showToast('请输入正确金额，最多两位小数'); $('#entry-amount').focus(); return; }
+  const cents = calculateAmountCents($('#entry-amount').value.trim());
+  if (cents === null) { calculatorError('请输入有效金额或算式，结果须大于零'); $('#entry-amount').focus(); return; }
   const merchant = $('#entry-merchant').value.trim();
   const date = $('#entry-date').value;
   if (!validDate(date)) { showToast('请选择正确日期'); return; }
@@ -476,6 +524,9 @@ document.querySelectorAll('.period-switch button').forEach(button => button.addE
 $('#add-button').addEventListener('click', () => openEntry());
 $('#close-entry').addEventListener('click', closeEntry);
 $('#entry-form').addEventListener('submit', saveEntry);
+$('#toggle-calculator').addEventListener('click', toggleCalculator);
+$('#calculator').querySelectorAll('button').forEach(button => button.addEventListener('click', () => calculatorKey(button.dataset.calcKey)));
+$('#entry-amount').addEventListener('input', () => { calculatorJustSolved = false; calculatorError(); });
 $('#delete-entry').addEventListener('click', deleteEntry);
 $('#entry-dialog').addEventListener('click', e => { if (e.target === $('#entry-dialog')) closeEntry(); });
 document.querySelectorAll('.type-switch button').forEach(button => button.addEventListener('click', () => { entryType = button.dataset.type; entryCategory = entryType === 'income' ? '工资' : '餐饮'; renderCategories(); }));

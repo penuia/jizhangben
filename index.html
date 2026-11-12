@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-180.png">
-  <link rel="stylesheet" href="./style.css?v=32">
+  <link rel="stylesheet" href="./style.css?v=33">
   <title>记账本</title>
 </head>
 <body>
@@ -78,7 +78,15 @@
       <div class="dialog-head"><button type="button" id="close-entry" class="text-button">取消</button><h2 id="dialog-title">记一笔</h2><button type="submit" class="text-button save">保存</button></div>
       <p id="ocr-review-message" class="ocr-review-message" hidden></p>
       <div class="type-switch" role="group" aria-label="收支类型"><button type="button" data-type="expense" class="selected">支出</button><button type="button" data-type="income">收入</button></div>
-      <label class="amount-field"><span>金额</span><div><b>¥</b><input id="entry-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" required></div></label>
+      <div class="amount-field"><label for="entry-amount">金额</label><div><b>¥</b><input id="entry-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" required><button id="toggle-calculator" type="button" aria-controls="calculator" aria-expanded="false">计算</button></div></div>
+      <div id="calculator" class="calculator" aria-label="金额计算器" hidden>
+        <button type="button" data-calc-key="7">7</button><button type="button" data-calc-key="8">8</button><button type="button" data-calc-key="9">9</button><button type="button" data-calc-key="÷" aria-label="除">÷</button>
+        <button type="button" data-calc-key="4">4</button><button type="button" data-calc-key="5">5</button><button type="button" data-calc-key="6">6</button><button type="button" data-calc-key="×" aria-label="乘">×</button>
+        <button type="button" data-calc-key="1">1</button><button type="button" data-calc-key="2">2</button><button type="button" data-calc-key="3">3</button><button type="button" data-calc-key="−" aria-label="减">−</button>
+        <button type="button" data-calc-key="0">0</button><button type="button" data-calc-key=".">.</button><button type="button" data-calc-key="⌫" aria-label="退格">⌫</button><button type="button" data-calc-key="+" aria-label="加">+</button>
+        <button type="button" class="calc-wide" data-calc-key="C">清空</button><button type="button" class="calc-wide calc-equals" data-calc-key="=">=</button>
+      </div>
+      <p id="calculator-error" class="calculator-error" role="alert" hidden></p>
       <div class="form-group"><label for="entry-merchant">商户或来源（可选）</label><input id="entry-merchant" type="text" maxlength="60" autocomplete="off" placeholder="例如 便利店"></div>
       <div class="form-group"><label>分类</label><div id="category-picker" class="category-picker"></div></div>
       <div class="form-group"><label for="entry-date">日期</label><input id="entry-date" type="date" required></div>
@@ -89,6 +97,6 @@
 
   <div id="shortcut-card" class="shortcut-card" role="status" aria-live="polite" hidden><span class="shortcut-spark" aria-hidden="true">🕊️</span><div><strong>快捷指令自动记账成功 🕊️</strong><small id="shortcut-detail"></small></div><button id="close-shortcut-card" type="button" aria-label="关闭提示">×</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=32"></script>
+  <script type="module" src="./app.js?v=33"></script>
 </body>
 </html>
