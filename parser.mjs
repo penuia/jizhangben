@@ -78,14 +78,14 @@ function findAmount(lines) {
   const amountLabel = /订单金额|金额|合计/;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (/余额|优惠|红包|积分|手续费|原价|剩余|抵扣|折扣|省了|付款方式|银行卡|尾号/.test(line)) continue;
+    if (/余额|优惠|红包|积分|优惠券|推荐|广告|手续费|原价|剩余|抵扣|折扣|省了|付款方式|银行卡|尾号/.test(line)) continue;
     const previous = lines[i - 1] || '';
     let cents = amountFromLine(line);
     if (cents === null && (strongAmountLabel.test(previous) || amountLabel.test(previous)) && /^\s*[-−]?\s*¥?\s*\d{1,8}(?:\.\d{1,2})?\s*$/.test(line)) {
       cents = Math.round(Number(line.replace(/[^\d.]/g, '')) * 100);
     }
     const standalone = /^\s*[-−]\s*\d{1,8}\.\d{1,2}\s*$/.test(line);
-    if (cents === null && standalone && i < 15 && /支付成功|付款成功|交易成功|交易已完成/.test(lines.slice(i + 1, i + 4).join(' '))) {
+    if (cents === null && standalone && i < 18 && /支付成功|付款成功|交易成功|交易已完成|等待确认收货|已发货/.test(lines.slice(i + 1, i + 5).join(' '))) {
       cents = Math.round(Number(line.replace(/[^\d.]/g, '')) * 100);
     }
     if (cents === null || !Number.isSafeInteger(cents) || cents <= 0 || cents > 10000000000) continue;
@@ -97,7 +97,7 @@ function findAmount(lines) {
   if (candidates.length) return candidates[0];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (/余额|优惠|红包|积分|手续费|原价|剩余|抵扣|折扣|省了|银行卡|尾号|时间|日期|订单号/.test(line) || /20\d{2}\s*[-/.年]\s*\d{1,2}/.test(line)) continue;
+    if (/余额|优惠|红包|积分|优惠券|推荐|广告|手续费|原价|剩余|抵扣|折扣|省了|银行卡|尾号|时间|日期|订单号/.test(line) || /20\d{2}\s*[-/.年]\s*\d{1,2}/.test(line)) continue;
     const match = line.replace(/,/g, '').match(/(?<!\d)(\d{1,8}\.\d{1,2})(?!\d)/);
     if (!match) continue;
     const cents = Math.round(Number(match[1]) * 100);
@@ -114,8 +114,18 @@ const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款
 const nextFieldLabel = /^(?:商户全称|商户名称|商户|商家名称|付款给|转账给|收款方全称|收款方名称|收款方|收单机构|付款方式|支付方式|支付时间|交易时间|商品说明|商品名称|商品|交易单号|商户单号|账单分类|备注)/;
 
 function cleanDetail(value) {
-  const cleaned = String(value || '').replace(/^[\s:：·•—-]+/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
-  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/%[0-9a-f]{2}/i.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
+  const cleaned = String(value || '').replace(/^[\s:：·•—-]+/, '').replace(/[-－—]?\s*[A-Za-z0-9]{20,}(?:\s*\d+)?$/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/%[0-9a-f]{2}/i.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !/^[A-Za-z0-9-]{20,}$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
+}
+
+function findPlatform(lines, amount, text) {
+  const header = lines.slice(0, amount?.index ?? 15).join(' ');
+  if (/美团/.test(header)) return /美团外卖|外卖微信小程序|特价外卖团购/.test(text) ? '美团外卖' : '美团';
+  if (/天猫/.test(header)) return '天猫';
+  if (/淘宝/.test(header)) return '淘宝';
+  if (/京东/.test(header)) return '京东';
+  if (/拼多多/.test(header)) return '拼多多';
+  return '';
 }
 
 function findLabeledDetail(lines, label) {
@@ -149,10 +159,10 @@ function findMerchant(lines) {
 }
 
 const paymentCategoryRules = [
-  ['餐饮', /咖啡|麦当劳|便利店|便利超市|超市|餐饮|小吃|饭店|餐厅|外卖|奶茶|火锅|面馆|肯德基|7[- ]?ELEVEN|711|全家|罗森|瑞幸|星巴克|库迪|Manner|美团|饿了么|水果/i],
-  ['交通', /滴滴|高德|地铁|公交|加油|停车|打车|高铁|机票|出行/],
-  ['购物', /淘宝|京东|拼多多|天猫|猫咪|购物|商城|服饰|优衣库/],
-  ['娱乐', /影城|KTV|网易云|腾讯视频|电影|游戏|演出|音乐/i]
+  ['餐饮', /美团外卖|咖啡|麦当劳|便利店|便利超市|超市|餐饮|小吃|饭店|餐厅|外卖|食品|奶茶|火锅|面馆|肯德基|7[- ]?ELEVEN|711|全家|罗森|瑞幸|星巴克|库迪|Manner|饿了么|水果/i],
+  ['交通', /美团打车|滴滴|高德|地铁|公交|加油|停车|打车|高铁|机票|出行/],
+  ['购物', /淘宝|京东|拼多多|天猫|猫咪|购物|商城|服饰|日用品|优衣库/],
+  ['娱乐', /影城|KTV|网易云|腾讯视频|视频会员|电影|游戏|演出|音乐/i]
 ];
 
 export function classifyPayment(merchant = '', product = '') {
@@ -179,9 +189,10 @@ export function parseOCR(rawText, today = new Date()) {
   if (!text) return { status: 'review', reason: '没有识别到文字', type: 'expense', amountCents: null, category: '日常', merchant: '', note: '' };
   const failed = /支付失败|付款失败|收款失败|交易失败|支付中|待支付|待付款|未支付|已取消|交易关闭|退款中/.test(text);
   const income = /收款成功|已收款|到账成功|入账成功|收入成功|退款成功|退款到账/.test(text);
-  const expense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功|交易成功|交易已完成|订单已完成/.test(text);
-  const type = income && !expense ? 'income' : 'expense';
+  const explicitExpense = /支付成功|付款成功|已支付|支付完成|付款完成|扣款成功|支出成功|交易成功|交易已完成|订单已完成/.test(text);
   const amount = findAmount(lines);
+  const expense = explicitExpense || (/等待确认收货|已发货/.test(text) && /支付时间|付款时间/.test(text) && amount?.score >= 3);
+  const type = income && !expense ? 'income' : 'expense';
   const product = findLabeledDetail(lines, productLabel);
   const wechatItem = findLabeledDetail(lines, wechatItemLabel);
   const alipayDescription = findLabeledDetail(lines, alipayDescriptionLabel);
@@ -190,8 +201,11 @@ export function parseOCR(rawText, today = new Date()) {
   const wechat = /微信支付|商户全称|财付通|交易单号/.test(text) && !alipay;
   const aboveAmount = amount?.index > 0 ? cleanDetail(lines[amount.index - 1]) : '';
   const belowAmount = amount && amount.index + 1 < lines.length ? cleanDetail(lines[amount.index + 1]) : '';
-  const preferredMerchant = alipay ? (alipayDescription || merchantResult.name || aboveAmount) : wechat ? (wechatItem || merchantResult.name || aboveAmount || belowAmount) : (wechatItem || alipayDescription || merchantResult.name || product || aboveAmount);
-  const merchant = preferredMerchant || merchantResult.name;
+  const platform = findPlatform(lines, amount, text);
+  const clearAboveAmount = /[*＊]{2,}/.test(aboveAmount) ? '' : aboveAmount;
+  const clearLabeledMerchant = /[*＊]{2,}/.test(merchantResult.name) ? '' : merchantResult.name;
+  const preferredMerchant = platform === '美团外卖' ? platform : alipay ? (alipayDescription || clearLabeledMerchant || clearAboveAmount || platform) : wechat ? (wechatItem || clearLabeledMerchant || clearAboveAmount || platform || belowAmount) : (clearAboveAmount || clearLabeledMerchant || platform || wechatItem || alipayDescription || product);
+  const merchant = preferredMerchant || (type === 'expense' ? '线上消费' : '');
   const note = product && product !== merchant ? '商品：' + product : '';
   const category = type === 'income' ? guessIncomeCategory([merchant, product, text].join(' ')) : classifyPayment(merchant, product);
   const foundDate = findDate(lines, today);
