@@ -50,8 +50,15 @@ button:focus:not(:focus-visible){outline:none}
 .day-heading{color:#7898b3;font-size:11px;font-weight:750;margin:0 4px 9px}
 .day-sticker{position:absolute;right:13px;top:-10px;font-size:23px;filter:drop-shadow(0 2px 2px #507da633)}
 .transaction-card{overflow:hidden;border-radius:10px;background:#f7fafd}
-.transaction-row+.transaction-row{border-top:1px solid #e6edf4}
+.swipe-row{position:relative;overflow:hidden;touch-action:pan-y}
+.swipe-row+.swipe-row{border-top:1px solid #e6edf4}
+.swipe-actions{position:absolute;inset:0 0 0 auto;display:flex;width:148px}
+.swipe-actions button{width:74px;border:0;font-size:13px;font-weight:750}
+.swipe-edit{background:#e3f1fb;color:#356b99}
+.swipe-delete{background:#fce9ee;color:#a85266}
 .transaction-row{position:relative;display:flex;align-items:center;width:100%;min-height:65px;text-align:left;background:#f7fafd;border:0;color:#29435b;padding:10px 9px;transition:transform .2s ease}
+.swipe-row.is-open .transaction-row{transform:translateX(-148px)}
+.swipe-row.dragging .transaction-row{transition:none}
 .transaction-row:active{background:#eef5fb}
 .category-icon{width:39px;height:39px;flex:none;display:grid;place-items:center;background:var(--pastel,#e5f0f9);border-radius:11px;margin-right:10px;font-size:19px}
 .transaction-info{min-width:0;flex:1}
