@@ -106,16 +106,24 @@ function findAmount(lines) {
   return null;
 }
 
-const merchantLabel = /^(?:商户全称|商户名称|商户|收款方全称|收款方名称|收款方|付款给|转账给|收款人|交易对方|对方名称|对方|店铺名称|店铺|商家名称|商家)\s*[:：]?\s*(.*)$/;
-const productLabel = /^(?:商品\/服务|商品说明|商品名称|商品详情|商品信息|订单商品|交易商品|交易内容|付款说明|购买商品|商品)\s*[:：]?\s*(.*)$/;
-const wechatItemLabel = /^商品(?!说明|名称|详情|信息)\s*[:：]?\s*(.*)$/;
-const alipayDescriptionLabel = /^商品说明\s*[:：]?\s*(.*)$/;
-const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|账单详情|订单详情|交易详情|支付详情|当前状态|交易状态|交易服务|账单管理|订单号|交易单号|商户单号|单号|流水号|付款方式|支付方式|支付奖励|立即领取|查看扣款顺序|收单机构|银行卡|复制|完成|查看详情|感谢使用|积分|优惠券|广告|¥|\d{1,2}:\d{2}(?::\d{2})?$)/;
+// A label must end or have a separator. Otherwise "商户单号" matches "商户".
+const fieldEnd = '(?:\\s*[:：]\\s*|\\s+|$)';
+const merchantLabel = new RegExp('^(?:商户全称|商户名称|商户|收款方全称|收款方名称|收款方|付款给|转账给|收款人|交易对方|对方名称|对方|店铺名称|店铺|商家名称|商家)' + fieldEnd + '(.*)$');
+const productLabel = new RegExp('^(?:商品\\/服务|商品说明|商品名称|商品详情|商品信息|订单商品|交易商品|交易内容|付款说明|购买商品|商品)' + fieldEnd + '(.*)$');
+const wechatItemLabel = new RegExp('^商品' + fieldEnd + '(.*)$');
+const alipayDescriptionLabel = new RegExp('^商品说明' + fieldEnd + '(.*)$');
+const detailNoise = /^(?:微信支付|支付宝|支付成功|付款成功|收款成功|交易成功|支付金额|付款金额|收款金额|交易金额|实付金额|订单金额|金额|合计|账单详情|订单详情|交易详情|支付详情|当前状态|交易状态|交易服务|账单管理|订单号|交易单号|商户单号|单号|流水号|付款方式|支付方式|支付奖励|立即领取|查看扣款顺序|收单机构|银行卡|复制|完成|查看详情|感谢使用|积分|优惠券|广告|¥|\d{1,2}:\d{2}(?::\d{2})?$)/;
 const nextFieldLabel = /^(?:商户全称|商户名称|商户|商家名称|付款给|转账给|收款方全称|收款方名称|收款方|收单机构|付款方式|支付方式|支付时间|交易时间|商品说明|商品名称|商品|交易单号|商户单号|账单分类|备注)/;
 
 function cleanDetail(value) {
-  const cleaned = String(value || '').replace(/^[\s:：·•—-]+/, '').replace(/[-－—]?\s*[A-Za-z0-9]{20,}(?:\s*\d+)?$/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
-  return cleaned.length >= 2 && !detailNoise.test(cleaned) && !/%[0-9a-f]{2}/i.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !/^[A-Za-z0-9-]{20,}$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
+  const cleaned = String(value || '')
+    .replace(/^[\s:：·•—-]+/, '')
+    .replace(/(?:交易单号|商户单号|订单号|流水号|交易编号|订单编号)\s*[:：]?\s*[A-Za-z0-9\s-]+$/i, '')
+    .replace(/(?:[-－—#：:]|\s+)\s*(?:[A-Za-z0-9][\s-]*){12,}$/, '')
+    .replace(/\s+/g, ' ').trim().slice(0, 60);
+  const identifier = /^(?:商户单号|交易单号|订单号|流水号|交易编号|订单编号|单号|编号|支付订单号|微信支付订单号)/i.test(cleaned)
+    || /^[A-Za-z0-9\s\-+.,/:#]+$/.test(cleaned) && (cleaned.match(/\d/g) || []).length >= 8;
+  return cleaned.length >= 2 && !identifier && !detailNoise.test(cleaned) && !/%[0-9a-f]{2}/i.test(cleaned) && !/^[+\-\d.,\s]+$/.test(cleaned) && !merchantLabel.test(cleaned) && !productLabel.test(cleaned) && !dateLabel.test(cleaned) ? cleaned : '';
 }
 
 function findPlatform(lines, amount, text) {

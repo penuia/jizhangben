@@ -1,7 +1,7 @@
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;color:#29435b;background:#F7F5F0;font-synthesis:none}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html,body{touch-action:pan-x pan-y}
+html,body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y}
 body{margin:0;background:#F7F5F0}
 button,input{font:inherit}
 button{cursor:pointer}
@@ -50,15 +50,8 @@ button:focus:not(:focus-visible){outline:none}
 .day-heading{color:#7898b3;font-size:11px;font-weight:750;margin:0 4px 9px}
 .day-sticker{position:absolute;right:13px;top:-10px;font-size:23px;filter:drop-shadow(0 2px 2px #507da633)}
 .transaction-card{overflow:hidden;border-radius:10px;background:#f7fafd}
-.swipe-row{position:relative;overflow:hidden;touch-action:pan-y}
-.swipe-row+.swipe-row{border-top:1px solid #e6edf4}
-.swipe-actions{position:absolute;inset:0 0 0 auto;display:flex;width:148px}
-.swipe-actions button{width:74px;border:0;font-size:13px;font-weight:750}
-.swipe-edit{background:#e3f1fb;color:#356b99}
-.swipe-delete{background:#fce9ee;color:#a85266}
+.transaction-row+.transaction-row{border-top:1px solid #e6edf4}
 .transaction-row{position:relative;display:flex;align-items:center;width:100%;min-height:65px;text-align:left;background:#f7fafd;border:0;color:#29435b;padding:10px 9px;transition:transform .2s ease}
-.swipe-row.is-open .transaction-row{transform:translateX(-148px)}
-.swipe-row.dragging .transaction-row{transition:none}
 .transaction-row:active{background:#eef5fb}
 .category-icon{width:39px;height:39px;flex:none;display:grid;place-items:center;background:var(--pastel,#e5f0f9);border-radius:11px;margin-right:10px;font-size:19px}
 .transaction-info{min-width:0;flex:1}
@@ -106,8 +99,8 @@ button:focus:not(:focus-visible){outline:none}
 .nav-item.active{color:#4A7BB0}
 .fab{position:fixed;z-index:9;left:50%;bottom:calc(77px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:6px;height:49px;border:0;border-radius:999px;padding:0 21px;background:#4A7BB0;color:white;box-shadow:0 9px 21px #4A7BB04f;font-size:13px;font-weight:800}
 .fab span{font-size:24px;font-weight:400}
-.entry-dialog{width:min(calc(100% - 32px),600px);height:min(700px,calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));max-height:calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:auto;border:0;border-radius:24px;background:#fffdfb;color:#29435b;padding:0;box-shadow:0 12px 40px #29435b40;overflow:hidden}
-.entry-dialog form{height:100%;overflow-y:auto;overscroll-behavior:contain;padding:0 20px 20px;-webkit-overflow-scrolling:touch}
+.entry-dialog{position:fixed;inset:0;width:min(calc(100vw - 32px),600px);max-width:calc(100vw - 32px);height:min(700px,calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));max-height:calc(100svh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:auto;border:0;border-radius:24px;background:#fffdfb;color:#29435b;padding:0;box-shadow:0 12px 40px #29435b40;overflow:hidden;touch-action:pan-y}
+.entry-dialog form{height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:0 20px 20px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .entry-dialog::backdrop{background:#203e5a75}
 .dialog-head{position:sticky;z-index:1;top:0;display:flex;justify-content:space-between;align-items:center;height:61px;background:#fffdfb}
 .dialog-head h2{font-size:16px;margin:0}

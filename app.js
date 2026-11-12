@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR, parsePaymentJSON } from './parser.mjs?v=30';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, parseOCR, parsePaymentJSON } from './parser.mjs?v=31';
 
 const STORAGE_KEY = 'xiaozhangben.records.v1';
 const BUDGET_KEY = 'xiaozhangben.monthlyBudget.v1';
@@ -25,7 +25,6 @@ let editingId = null;
 let entryType = 'expense';
 let entryCategory = '餐饮';
 let toastTimer;
-let openSwipeRow = null;
 
 function loadRecords() {
   try { const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(value) ? value.filter(validRecord) : []; }
@@ -106,7 +105,6 @@ function render() {
 }
 function renderList(rows) {
   const el = $('#transaction-list');
-  openSwipeRow = null;
   if (!rows.length) {
     el.innerHTML = '<div class="empty-state"><span>○</span><strong>这个月还没有记录</strong><p>点“记一笔”开始记录。</p></div>';
     return;
@@ -123,62 +121,11 @@ function renderList(rows) {
       const badge = r.merchant ? '<em class="category-tag">' + escapeHTML(r.category) + '</em>' : '';
       const note = r.note ? '<small>' + escapeHTML(r.note) + '</small>' : '';
       const meta = badge || note ? '<span class="transaction-meta">' + badge + note + '</span>' : '';
-      return '<div class="swipe-row"><div class="swipe-actions"><button type="button" class="swipe-edit" tabindex="-1" aria-label="修改' + escapeHTML(merchantOf(r)) + '">修改</button><button type="button" class="swipe-delete" tabindex="-1" aria-label="删除' + escapeHTML(merchantOf(r)) + '">删除</button></div><button type="button" class="transaction-row" data-id="' + escapeHTML(r.id) + '" style="--pastel:' + pastel + '"><span class="category-icon">' + escapeHTML(cat?.icon || '✦') + '</span><span class="transaction-info"><strong>' + escapeHTML(merchantOf(r)) + '</strong>' + meta + '</span><span class="transaction-amount ' + r.type + '">' + (r.type === 'income' ? '+' : '−') + money(r.amountCents) + '</span></button></div>';
+      return '<button type="button" class="transaction-row" data-id="' + escapeHTML(r.id) + '" style="--pastel:' + pastel + '"><span class="category-icon">' + escapeHTML(cat?.icon || '✦') + '</span><span class="transaction-info"><strong>' + escapeHTML(merchantOf(r)) + '</strong>' + meta + '</span><span class="transaction-amount ' + r.type + '">' + (r.type === 'income' ? '+' : '−') + money(r.amountCents) + '</span></button>';
     }).join('');
     return '<div class="day-group"><div class="day-heading">' + heading + '</div><div class="transaction-card">' + inner + '</div></div>';
   }).join('');
-  el.querySelectorAll('.swipe-row').forEach(row => {
-    const front = row.querySelector('.transaction-row');
-    let gesture = null;
-    let ignoreClickUntil = 0;
-    front.addEventListener('click', () => {
-      if (Date.now() < ignoreClickUntil) return;
-      if (row.classList.contains('is-open')) { setSwipeOpen(row, false); return; }
-      openEntry(records.find(r => r.id === front.dataset.id));
-    });
-    row.querySelector('.swipe-edit').addEventListener('click', () => openEntry(records.find(r => r.id === front.dataset.id)));
-    row.querySelector('.swipe-delete').addEventListener('click', () => deleteRecord(front.dataset.id));
-    row.addEventListener('touchstart', event => {
-      if (event.target.closest('.swipe-actions')) return;
-      const touch = event.touches[0];
-      gesture = { x: touch.clientX, y: touch.clientY, open: row.classList.contains('is-open'), dragging: false };
-    }, { passive: true });
-    row.addEventListener('touchmove', event => {
-      if (!gesture) return;
-      const touch = event.touches[0];
-      const dx = touch.clientX - gesture.x;
-      const dy = touch.clientY - gesture.y;
-      if (!gesture.dragging && (Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy) * 1.2)) return;
-      gesture.dragging = true;
-      row.classList.add('dragging');
-      front.style.transform = 'translateX(' + Math.max(-148, Math.min(0, (gesture.open ? -148 : 0) + dx)) + 'px)';
-    }, { passive: true });
-    row.addEventListener('touchend', event => {
-      if (!gesture) return;
-      if (gesture.dragging) {
-        const dx = event.changedTouches[0].clientX - gesture.x;
-        row.classList.remove('dragging');
-        front.style.transform = '';
-        setSwipeOpen(row, dx < -45 ? true : dx > 45 ? false : gesture.open);
-        ignoreClickUntil = Date.now() + 500;
-      }
-      gesture = null;
-    }, { passive: true });
-    row.addEventListener('touchcancel', () => {
-      row.classList.remove('dragging');
-      front.style.transform = '';
-      gesture = null;
-    }, { passive: true });
-  });
-}
-function setSwipeOpen(row, open) {
-  if (openSwipeRow && openSwipeRow !== row) {
-    openSwipeRow.classList.remove('is-open');
-    openSwipeRow.querySelectorAll('.swipe-actions button').forEach(button => button.tabIndex = -1);
-  }
-  row.classList.toggle('is-open', open);
-  row.querySelectorAll('.swipe-actions button').forEach(button => button.tabIndex = open ? 0 : -1);
-  openSwipeRow = open ? row : null;
+  el.querySelectorAll('.transaction-row').forEach(row => row.addEventListener('click', () => openEntry(records.find(r => r.id === row.dataset.id))));
 }
 function renderStats(rows, income, expense) {
   $('#stats-income').textContent = money(income);
@@ -252,7 +199,6 @@ function renderCategories() {
   document.querySelectorAll('.type-switch button').forEach(button => button.classList.toggle('selected', button.dataset.type === entryType));
 }
 function openEntry(row = null) {
-  if (openSwipeRow) setSwipeOpen(openSwipeRow, false);
   editingId = row?.id || null;
   entryType = row?.type || 'expense';
   entryCategory = row?.category || (entryType === 'income' ? '工资' : '餐饮');
@@ -486,6 +432,24 @@ $('#import-file').addEventListener('change', importJSON);
 $('#merge-file').addEventListener('change', mergeJSON);
 $('#copy-shortcut-url').addEventListener('click', copyShortcutURL);
 $('#close-shortcut-card').addEventListener('click', () => { $('#shortcut-card').hidden = true; });
+// Keep the page fixed horizontally while preserving vertical list and form scrolling.
+let touchOrigin = null;
+document.addEventListener('touchstart', event => {
+  if (event.touches.length !== 1) { touchOrigin = null; if (event.cancelable) event.preventDefault(); return; }
+  touchOrigin = { x:event.touches[0].clientX, y:event.touches[0].clientY };
+}, { passive:false });
+document.addEventListener('touchmove', event => {
+  if (event.touches.length !== 1) { if (event.cancelable) event.preventDefault(); return; }
+  if (!touchOrigin || event.target.closest('input,textarea,select')) return;
+  const dx = event.touches[0].clientX - touchOrigin.x;
+  const dy = event.touches[0].clientY - touchOrigin.y;
+  if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) && event.cancelable) event.preventDefault();
+}, { passive:false });
+document.addEventListener('touchend', () => { touchOrigin = null; }, { passive:true });
+document.addEventListener('touchcancel', () => { touchOrigin = null; }, { passive:true });
+document.addEventListener('gesturestart', event => { if (event.cancelable) event.preventDefault(); }, { passive:false });
+document.addEventListener('gesturechange', event => { if (event.cancelable) event.preventDefault(); }, { passive:false });
+document.addEventListener('dblclick', event => { if (event.cancelable) event.preventDefault(); });
 window.addEventListener('hashchange', captureFromURL);
 $('#monthly-budget').value = monthlyBudget > 0 ? (monthlyBudget / 100).toFixed(2) : '';
 render();
